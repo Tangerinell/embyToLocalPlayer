@@ -22,9 +22,7 @@ if "%PYTHON_VERSION:~0,6%" == "Python" (
     echo 3: open startup folder
     echo 4: path translate helper
     echo 5: copy script path to clipboard
-    echo 6: update to latest version
-    choice /N /C:123456 /M "press a number"%1
-    IF ERRORLEVEL ==6 GOTO SIX
+    choice /N /C:12345 /M "press a number"%1
     IF ERRORLEVEL ==5 GOTO FIVE
     IF ERRORLEVEL ==4 GOTO FOUR
     IF ERRORLEVEL ==3 GOTO THREE
@@ -35,12 +33,6 @@ if "%PYTHON_VERSION:~0,6%" == "Python" (
     echo ERROR: python not found, reinstall it and add to path!
     GOTO END
 )
-
-
-:SIX
-echo you have pressed six
-%pythonPath% "%~dp0utils/update.py"
-GOTO END
 
 
 :FIVE
