@@ -37,7 +37,7 @@ def check_ini_diff(old_path, new_path, diff_path):
 
 
 def main():
-    url = 'https://github.com/kjtsune/embyToLocalPlayer/releases/latest/download/embyToLocalPlayer.zip'
+    url = 'https://github.com/Tangerinell/embyToLocalPlayer/releases/latest/download/etlp-python-embed-win32.zip'
     cwd = configs.cwd
 
     ini_old = configs.path
@@ -59,6 +59,9 @@ def main():
         for name in z.namelist():
             if name.startswith('embyToLocalPlayer_config'):
                 continue
+            # 便携包内的 Python 运行环境和本地路径配置不覆盖。
+            if name == 'python_embed' or name.startswith('python_embed/'):
+                continue
             if is_nt and name.startswith('etlp_run'):
                 continue
             z.extract(name)
@@ -67,6 +70,7 @@ def main():
             i_f.write(z_f.read())
 
     check_ini_diff(old_path=ini_old, new_path=ini_example, diff_path=diff_path)
+    os.remove(zip_path)
     print()
 
 
