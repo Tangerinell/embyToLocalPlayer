@@ -1,3 +1,4 @@
+# Modified by Tangerinell on 2026-11-27: ignore Python caches.
 embyToLocalPlayer-Windows.ini
 embyToLocalPlayer-Linux.ini
 embyToLocalPlayer-Darwin.ini

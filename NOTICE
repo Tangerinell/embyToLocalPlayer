@@ -1,0 +1,18 @@
+embyToLocalPlayer (modified distribution)
+
+Original project: https://github.com/kjtsune/embyToLocalPlayer
+Original author: kjtsune and contributors.
+
+This distribution is a modified version maintained by Tangerinell.
+It is not an official release of the upstream project.
+
+Changes made:
+- Fixed mpv/Emby playlist entries showing stream URLs instead of episode titles.
+- Playlist entries are now added through generated M3U files with #EXTINF titles,
+  while per-episode subtitle/chapter options are applied through the mpv IPC API.
+- Improved episode title generation when Emby metadata or episodesInfo is incomplete.
+- Removed the automatic update script and its launcher menu entry.
+- Added local startup helper and packaging/compliance notes.
+
+Licensed under the Apache License, Version 2.0.
+See LICENSE for the full license text.

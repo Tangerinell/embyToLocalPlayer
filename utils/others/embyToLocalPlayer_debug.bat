@@ -1,3 +1,8 @@
+REM Modified by Tangerinell on 2026-11-27:
+REM Removed the automatic update menu entry.
+REM Original project: https://github.com/kjtsune/embyToLocalPlayer
+REM Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
+
 @echo OFF
 chcp 65001
 :BEGIN

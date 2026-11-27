@@ -1,3 +1,9 @@
+# Modified by Tangerinell on 2026-11-27:
+# - Fixed mpv/Emby playlist showing stream URLs instead of episode titles.
+# - Other playlist/title robustness fixes.
+# Original project: https://github.com/kjtsune/embyToLocalPlayer
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
+
 import json
 import os.path
 import re
