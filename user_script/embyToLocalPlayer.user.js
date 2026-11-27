@@ -1,13 +1,17 @@
 // ==UserScript==
-// @name         embyToLocalPlayer
-// @name:zh-CN   embyToLocalPlayer
-// @name:en      embyToLocalPlayer
-// @namespace    https://github.com/kjtsune/embyToLocalPlayer
-// @version      2026.02.11
-// @description  Emby/Jellyfin 调用外部本地播放器，并回传播放记录。适配 Plex。
-// @description:zh-CN Emby/Jellyfin 调用外部本地播放器，并回传播放记录。适配 Plex。
-// @description:en  Play in an external player. Update watch history to Emby/Jellyfin server. Support Plex.
-// @author       Kjtsune
+// @name         embyToLocalPlayer (Tangerinell mod)
+// @name:zh-CN   embyToLocalPlayer（Tangerinell 修改版）
+// @name:en      embyToLocalPlayer (Tangerinell mod)
+// @namespace    https://github.com/Tangerinell/embyToLocalPlayer
+// @version      2026.11.27
+// @description  Emby/Jellyfin 调用外部本地播放器，并回传播放记录。适配 Plex。GitHub 自托管修改版。
+// @description:zh-CN Emby/Jellyfin 调用外部本地播放器，并回传播放记录。适配 Plex。GitHub 自托管修改版。
+// @description:en  Play in an external player. Update watch history to Emby/Jellyfin server. Support Plex. GitHub self-hosted mod.
+// @author       Kjtsune, Tangerinell
+// @homepageURL  https://github.com/Tangerinell/embyToLocalPlayer
+// @supportURL   https://github.com/Tangerinell/embyToLocalPlayer/issues
+// @updateURL    https://raw.githubusercontent.com/Tangerinell/embyToLocalPlayer/main/user_script/embyToLocalPlayer.user.js
+// @downloadURL  https://raw.githubusercontent.com/Tangerinell/embyToLocalPlayer/main/user_script/embyToLocalPlayer.user.js
 // @match        *://*/web/index.html*
 // @match        *://*/*/web/index.html*
 // @match        *://*/web/
@@ -27,6 +31,9 @@
 // @connect      127.0.0.1
 // @license MIT
 // ==/UserScript==
+// Modified by Tangerinell for GitHub self-hosted distribution, 2026-11-27.
+// Original project: https://github.com/kjtsune/embyToLocalPlayer (MIT)
+// This is not an official release.
 'use strict';
 /*global ApiClient*/
 

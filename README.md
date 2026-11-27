@@ -48,8 +48,8 @@ etlp - Emby/Jellyfin 调用 PotPlayer mpv IINA MPC VLC 播放，并回传播放�
    [Tampermonkey v2](https://chromewebstore.google.com/detail/lcmhijbkigalmkeommnijlpobloojgfn) |
    [Violentmonkey](https://chrome.google.com/webstore/detail/violent-monkey/jinjaccalgkegednnccohejagnlnfdag)
    已知问题：新版 chrome 可能无法安装。
-2. 安装油猴脚本并刷新 Emby 页面。[发布页](https://greasyfork.org/zh-CN/scripts/448648-embytolocalplayer)
-3. 方案三选一，下载并解压 `.zip` 到任意英文路径。 [发布页](https://github.com/kjtsune/embyToLocalPlayer/releases)
+2. 安装油猴脚本并刷新 Emby 页面。本仓库修改版（GitHub 自托管，不发布到 Greasy Fork）：[安装地址](https://raw.githubusercontent.com/Tangerinell/embyToLocalPlayer/main/user_script/embyToLocalPlayer.user.js)
+3. 方案三选一，下载并解压 `.zip` 到任意英文路径。 [发布页](https://github.com/Tangerinell/embyToLocalPlayer/releases)
     * 推荐: `etlp-mpv-py-embed-win32.zip` (mpv 播放器 | Windows only | 快捷键见 FAQ)  
       无需修改配置文件，查看下方 `.bat` 运行方法。
     * `etlp-python-embed-win32.zip` (Windows only)  
