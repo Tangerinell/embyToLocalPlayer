@@ -387,20 +387,35 @@ def version_prefer_for_playlist(_ep_success_map, current_key, file_path, cur_lis
     return res
 
 
+def safe_basename(file_path, fallback=''):
+    """os.path.basename 的安全版本，兼容 http 链接（去掉 query 参数）和空路径。"""
+    if not file_path:
+        return fallback
+    if '://' in file_path:
+        _path = urllib.parse.unquote(urllib.parse.urlparse(file_path).path)
+        return os.path.basename(_path.rstrip('/')) or fallback
+    return os.path.basename(file_path) or fallback
+
+
 def main_ep_to_title(main_ep_info):
+    ep_name = main_ep_info.get('Name') or ''
+    series_name = main_ep_info.get('SeriesName') or ''
     # movie
     if 'SeasonId' not in main_ep_info:
         if 'ProductionYear' not in main_ep_info:
-            return f"{main_ep_info['Name']}"
-        return f"{main_ep_info['Name']} ({main_ep_info['ProductionYear']})"
+            return ep_name
+        return f"{ep_name} ({main_ep_info['ProductionYear']})"
     # episode
     if 'ParentIndexNumber' not in main_ep_info or 'IndexNumber' not in main_ep_info:
-        return f"{main_ep_info['SeriesName']} - {main_ep_info['Name']}"
+        return f'{series_name} - {ep_name}' if series_name else ep_name
     if 'IndexNumberEnd' not in main_ep_info:
-        return f"{main_ep_info['SeriesName']} S{main_ep_info['ParentIndexNumber']}" \
-               f":E{main_ep_info['IndexNumber']} - {main_ep_info['Name']}"
-    return f"{main_ep_info['SeriesName']} S{main_ep_info['ParentIndexNumber']}" \
-           f":E{main_ep_info['IndexNumber']}-{main_ep_info['IndexNumberEnd']} - {main_ep_info['Name']}"
+        title_prefix = f"{series_name} S{main_ep_info['ParentIndexNumber']}" \
+                       f":E{main_ep_info['IndexNumber']}"
+    else:
+        title_prefix = f"{series_name} S{main_ep_info['ParentIndexNumber']}" \
+                       f":E{main_ep_info['IndexNumber']}-{main_ep_info['IndexNumberEnd']}"
+    title_prefix = title_prefix.strip()
+    return f'{title_prefix} - {ep_name}' if ep_name else title_prefix
 
 
 def main_ep_intro_time(main_ep_info):
@@ -421,7 +436,7 @@ def main_ep_intro_time(main_ep_info):
 
 
 def show_version_info(extra_data=None):
-    py_script_version = '2026.07.18'
+    py_script_version = '2026.11.27'
     if not extra_data:
         return py_script_version
     gm_info = extra_data.get('gmInfo')

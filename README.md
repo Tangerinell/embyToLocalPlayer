@@ -1,3 +1,12 @@
+> **本项目修改自上游 [kjtsune/embyToLocalPlayer](https://github.com/kjtsune/embyToLocalPlayer)，原作者为 kjtsune，非上游官方版本。**
+>
+> 上游仓库：https://github.com/kjtsune/embyToLocalPlayer
+>
+> 本仓库仅包含个人修改：修复 mpv/Emby 播放列表在未探测条目时显示 URL 而不是剧集标题的问题，并同步收录少量健壮性修复。
+> 使用前请优先阅读上游 README 与 FAQ。
+
+---
+
 # etlp - embyToLocalPlayer
 
 etlp - Emby/Jellyfin 调用 PotPlayer mpv IINA MPC VLC 播放，并回传播放进度（可关）。适配 Plex。

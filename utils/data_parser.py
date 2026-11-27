@@ -9,7 +9,7 @@ from utils.emby_api_thin import EmbyApiThin
 from utils.net_tools import multi_thread_requests, get_redirect_url
 from utils.tools import (show_version_info, main_ep_to_title, main_ep_intro_time, logger_setup, version_prefer_emby,
                          match_version_range, sub_via_other_media_version, force_disk_mode_by_path,
-                         translate_path_by_ini, debug_beep_win32, version_prefer_for_playlist)
+                         translate_path_by_ini, debug_beep_win32, version_prefer_for_playlist, safe_basename)
 
 logger = MyLogger()
 
@@ -63,8 +63,8 @@ def parse_received_data_emby(received_data):
     main_ep_info = extra_data['mainEpInfo']
     episodes_info = extra_data.get('episodesInfo') or []
     playlist_info = extra_data.get('playlistInfo') or []
-    # 随机播放剧集媒体库时，油猴没获取其他集的 Emby 标题，导致第一集回传数据失败，暂不处理。
-    emby_title = main_ep_to_title(main_ep_info) if not playlist_info else None
+    # 播放列表/随机播放时也优先从 mainEpInfo 取当前集标题，其余集在 list_episodes 里按条目数据生成。
+    emby_title = main_ep_to_title(main_ep_info)
     intro_time = main_ep_intro_time(main_ep_info)
     api_client = received_data['ApiClient']
     url = urllib.parse.urlparse(received_data['playbackUrl'])
@@ -120,8 +120,8 @@ def parse_received_data_emby(received_data):
             file_path = f'{path_prefix}{media_source_info["Name"]}{path_suffix}'
 
     # stream_url = f'{scheme}://{netloc}{media_source_info["DirectStreamUrl"]}' # 可能为转码后的链接
-    basename = os.path.basename(file_path)
-    container = os.path.splitext(file_path)[-1]
+    basename = safe_basename(file_path, fallback=main_ep_info.get('Name') or '')
+    container = os.path.splitext(urllib.parse.urlparse(file_path).path if '://' in file_path else file_path)[-1]
     extra_str = '/emby' if is_emby else ''
     server_version = api_client['_serverVersion']
     _a, _b, _c, *_d = [int(i) for i in server_version.split('.')]
@@ -222,7 +222,7 @@ def parse_received_data_emby(received_data):
     total_sec = int(media_source_info.get('RunTimeTicks', 0)) // 10 ** 7 or 3600 * 24
     position = start_sec / total_sec
     user_id = query['UserId']
-    media_basename = os.path.basename(media_path)
+    media_basename = safe_basename(media_path)
     size = int(media_source_info.get('Size', 0)) or 0
 
     result = dict(
@@ -685,13 +685,16 @@ def list_episodes(data: dict):
             else:
                 media_path = stream_url
 
-        basename = os.path.basename(file_path)
+        basename = safe_basename(file_path, fallback=item.get('Name') or '')
         index = item.get('IndexNumber', 0)
         unique_key = f"{item.get('ParentIndexNumber')}-{index}"
-        emby_title = title_data.get(unique_key)
+        # 播放列表条目的 key 可能跨季/跨剧，season 级别的 title_data 不可靠，直接按条目自己生成标题。
+        emby_title = None if playlist_info else title_data.get(unique_key)
+        if not emby_title:
+            emby_title = main_ep_to_title(item)
         media_title = f'{emby_title}  |  {basename}' if pretty_title and emby_title else basename
         media_title = media_title.replace('"', '”')
-        media_basename = os.path.basename(media_path)
+        media_basename = safe_basename(media_path)
         total_sec = int(source_info.get('RunTimeTicks', 0)) // 10 ** 7 or 3600 * 24
         size = int(source_info.get('Size', 0)) or 0
 

@@ -229,11 +229,53 @@ def playlist_add_mpv(mpv: MPV, data, eps_data=None, limit=10):
             pass
 
     gui_without_confirm = data.get('gui_without_confirm')
+    ep_by_entry_id = {}
+
+    def ep_media_path(ep):
+        if gui_without_confirm:
+            return os.path.join(configs.cache_path, ep['fake_name'])
+        return ep['media_path']
+
+    def build_ep_options(ep):
+        sub_cmd = ''
+        main_ep_sub = data.get('sub_file', '')
+        if sub_file := ep['sub_file']:
+            # mpvnet 不支持 sub-files-toggle
+            if main_ep_sub and not getattr(mpv, 'is_mpvnet'):
+                sub_cmd = f',sub-files-remove={main_ep_sub},sub-files-append={main_ep_sub}'
+                sub_cmd = sub_cmd + f',sub-files-append={sub_file}'
+            else:
+                sub_cmd = f',sub-file={sub_file}'
+
+        ep.pop('chap_path', None)
+        if intro_end := ep.get('intro_end'):
+            chap_path = mpv_intro_chapters_maker(start=ep['intro_start'], end=intro_end, file_name=ep['basename'])
+            ep['chap_path'] = chap_path
+            chap_cmd = f',chapters-file="{chap_path}"'
+        else:
+            chap_cmd = ''
+
+        options = (f'force-media-title="{ep["media_title"]}"'
+                   f',osd-playing-msg="{ep["media_title"]}",start=0{sub_cmd}{chap_cmd}')
+        if sub_inner_idx := ep.get('sub_inner_idx'):
+            options += f',sid={sub_inner_idx}'
+        return options
+
+    def ep_to_mpv_cmd(ep, insert=False):
+        # 仅用于播放中途替换重定向链接，实际追加播放列表由 m3u 完成。
+        options = build_ep_options(ep)
+        if insert:
+            mpv_cmd = ['loadfile', ep['media_path'], 'insert-at', '0', options]
+        else:
+            mpv_cmd = ['loadfile', ep_media_path(ep), 'append', '-1', options]
+        if not new_loadfile_cmd:
+            del mpv_cmd[-2]
+        return mpv_cmd
 
     def loop_episodes(eps, insert=False):
+        # 旧版 mpv 或 IINA 的兜底方式。
         for ep in eps:
             basename = ep['basename']
-            media_title = ep['media_title']
             if basename == data['basename']:
                 if intro_end := ep.get('intro_end'):
                     chap_path = mpv_intro_chapters_maker(start=ep['intro_start'], end=intro_end, file_name=basename)
@@ -241,45 +283,81 @@ def playlist_add_mpv(mpv: MPV, data, eps_data=None, limit=10):
                 continue
             if is_iina:
                 continue
-
-            sub_cmd = ''
-            main_ep_sub = data.get('sub_file', '')
-            if sub_file := ep['sub_file']:
-                # mpvnet 不支持 sub-files-toggle
-                if main_ep_sub and not getattr(mpv, 'is_mpvnet'):
-                    sub_cmd = f',sub-files-remove={main_ep_sub},sub-files-append={main_ep_sub}'
-                    sub_cmd = sub_cmd + f',sub-files-append={sub_file}'
-                else:
-                    sub_cmd = f',sub-file={sub_file}'
-
-            if intro_end := ep.get('intro_end'):
-                chap_path = mpv_intro_chapters_maker(start=ep['intro_start'], end=intro_end, file_name=basename)
-                chap_cmd = f',chapters-file="{chap_path}"'
-            else:
-                chap_cmd = ''
-
             try:
-                options = (f'force-media-title="{media_title}"'
-                           f',osd-playing-msg="{media_title}",start=0{sub_cmd}{chap_cmd}')
-                if sub_inner_idx := ep.get('sub_inner_idx'):
-                    options += f',sid={sub_inner_idx}'
-                if insert:
-                    mpv_cmd = ['loadfile', ep['media_path'], 'insert-at', '0', options]
-                else:
-                    mpv_cmd = ['loadfile', ep['media_path'], 'append', '-1', options]
-                    if gui_without_confirm:
-                        mpv_cmd[1] = os.path.join(configs.cache_path, ep['fake_name'])
-                logger.debug(options)
-                if not new_loadfile_cmd:
-                    del mpv_cmd[-2]
-                    if insert:
-                        logger.info('playlist insert disabled, require mpv version >= 0.38')
-                        break
+                mpv_cmd = ep_to_mpv_cmd(ep, insert=insert)
+                if not new_loadfile_cmd and insert:
+                    logger.info('playlist insert disabled, require mpv version >= 0.38')
+                    break
                 mpv.command(*mpv_cmd)
                 ep['mpv_cmd'] = mpv_cmd
             except OSError:
                 logger.error('mpv exit: by playlist_add_mpv: except OSError')
                 return {}
+
+    def write_m3u(eps, tag):
+        tmp_dir = os.path.join(configs.cwd, '.tmp')
+        os.makedirs(tmp_dir, exist_ok=True)
+        path = os.path.join(tmp_dir, f'playlist_{tag}_{time.time_ns()}.m3u')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('#EXTM3U\n')
+            for ep in eps:
+                title = str(ep.get('media_title') or ep.get('basename') or '')
+                title = title.replace('\r', ' ').replace('\n', ' ')
+                # 带上时长可让 mpv 不再逐个探测待播放条目，避免向 Emby 发一堆请求。
+                duration = int(ep.get('total_sec') or -1)
+                f.write(f'#EXTINF:{duration},{title}\n{ep_media_path(ep)}\n')
+        return path
+
+    def add_m3u(eps, flag):
+        # 用 m3u 的 #EXTINF 直接给播放列表条目设置标题，避免 mpv 未探测条目时显示 URL。
+        if not eps:
+            return True
+        path = write_m3u(eps, flag)
+        if flag == 'insert-at':
+            res = mpv.command('loadlist', path, 'insert-at', '0')
+        else:
+            res = mpv.command('loadlist', path, 'append')
+        first_id = res.get('playlist_entry_id') if isinstance(res, dict) else None
+        if isinstance(first_id, int):
+            for offset, ep in enumerate(eps):
+                ep_by_entry_id[first_id + offset] = ep
+        return True
+
+    @mpv.on_event('start-file')
+    def apply_ep_file_options(event_data):
+        ep = ep_by_entry_id.get(event_data.get('playlist_entry_id'))
+        if not ep:
+            return
+        try:
+            if media_title := ep.get('media_title'):
+                mpv.command('set_property', 'force-media-title', media_title)
+            if chap_path := ep.get('chap_path'):
+                mpv.command('set_property', 'chapters-file', chap_path)
+        except Exception as e:
+            logger.info(f'playlist apply ep options failed: {e}')
+
+    @mpv.on_event('file-loaded')
+    def apply_ep_subtitles(_event_data):
+        # file-loaded 事件没有 playlist_entry_id，按当前播放位置反查。
+        try:
+            pos = mpv.command('get_property', 'playlist-playing-pos')
+            playlist = mpv.command('get_property', 'playlist')
+            ep = ep_by_entry_id.get(playlist[pos].get('id'))
+            if not ep:
+                return
+            # 清除上一集通过命令添加的外挂字幕，避免字幕轨累积。
+            for track in mpv.command('get_property', 'track-list') or []:
+                if track.get('type') == 'sub' and track.get('external'):
+                    try:
+                        mpv.command('sub-remove', track['id'])
+                    except Exception:
+                        pass
+            if sub_inner_idx := ep.get('sub_inner_idx'):
+                mpv.command('set_property', 'sid', sub_inner_idx)
+            elif sub_file := ep.get('sub_file'):
+                mpv.command('sub-add', sub_file, 'select')
+        except Exception as e:
+            logger.debug(f'playlist apply subtitles failed: {e}')
 
     cur_index = None
     for _index, _ep in enumerate(episodes):
@@ -296,22 +374,36 @@ def playlist_add_mpv(mpv: MPV, data, eps_data=None, limit=10):
     pre_index = 0 if pre_index < 0 else pre_index
     pre_list = episodes[pre_index:cur_index]
     suf_list = episodes[cur_index:cur_index + limit]
+    # 起播集由命令行加载，m3u 里不能再追加一次，否则下一集会重复播放当前集。
+    suf_m3u_list = [ep for ep in suf_list if ep['basename'] != data['basename']]
 
     def adding_thread():
         try:
             if configs.raw.getboolean('dev', 'mpv_ipc_playlist_data', fallback=False):
                 mpv.command('script-message', 'etlp-playlist-data', json.dumps(playlist_data, ensure_ascii=False))
             mpv.wait_for_property('time-pos')  # 太早添加可能会导致播放第一个文件，而不是命令行指定文件。#193
-            suf_thread = threading.Thread(target=loop_episodes, args=(suf_list,))
-            pre_thread = threading.Thread(target=loop_episodes, args=(reversed(pre_list), True))
-            _ = [suf_thread.start(), pre_thread.start()]
-            _ = [suf_thread.join(), pre_thread.join()]
+            use_m3u = new_loadfile_cmd and not is_iina
+            if use_m3u:
+                try:
+                    for ep in pre_list:
+                        ep['mpv_cmd'] = ep_to_mpv_cmd(ep, insert=True)
+                    for ep in suf_m3u_list:
+                        ep['mpv_cmd'] = ep_to_mpv_cmd(ep)
+                    add_m3u(pre_list, 'insert-at')
+                    add_m3u(suf_m3u_list, 'append')
+                except Exception as e:
+                    logger.info(f'playlist m3u add failed, fallback to loadfile: {e}')
+                    use_m3u = False
+            if not use_m3u:
+                suf_thread = threading.Thread(target=loop_episodes, args=(suf_list,))
+                pre_thread = threading.Thread(target=loop_episodes, args=(reversed(pre_list), True))
+                _ = [suf_thread.start(), pre_thread.start()]
+                _ = [suf_thread.join(), pre_thread.join()]
             mpv.command('script-message', 'etlp-playlist-done')
         except OSError:
             logger.info('mpv adding_thread OSError found, exit')
 
     threading.Thread(target=adding_thread, daemon=True).start()
-    # loop_episodes -> ep['mpv_cmd'] = mpv_cmd 貌似没被多线程运行影响
     return playlist_data
 
 
